@@ -67,7 +67,7 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 	fi
 	#无WIFI配置调整Q6大小
 	if [[ "${WRT_CONFIG,,}" == *"wifi"* && "${WRT_CONFIG,,}" == *"no"* ]]; then
-				# 仅针对亚瑟 (jdcloud) 的设备树进行无 Wi-Fi 替换，避免误伤其他设备导致内核编译报错
+		# 仅针对亚瑟 (jdcloud) 的设备树进行无 Wi-Fi 替换，避免误伤其他设备导致内核编译报错
 		find $DTS_PATH -type f -name '*jdcloud*' -exec sed -i 's/ipq6018.dtsi/ipq6018-nowifi.dtsi/g' {} +
 
 		echo "qualcommax set up nowifi successfully!"
