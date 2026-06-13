@@ -110,4 +110,12 @@ CONFIG_NET_SCH_BPF=y
 EOF
     done
 fi
+# 【新增】：强行修改高通平台机型的内核分区大小，防止打包失败
+IMAGE_FILE=$(find target/linux/qualcommax/image/ -type f -name "ipq60xx.mk")
+if [ -f "$IMAGE_FILE" ]; then
+    echo "Expanding kernel size for IPQ60XX devices..."
+    sed -i "/^define Device\/emmc-common/,/^endef/ s/KERNEL_SIZE := 6144k/KERNEL_SIZE := 12288k/" $IMAGE_FILE
+    sed -i "/^define Device\/jdcloud_re-ss-01/,/^endef/ { /KERNEL_SIZE := 6144k/s//KERNEL_SIZE := 12288k/ }" $IMAGE_FILE
+    sed -i "/^define Device\/jdcloud_re-cs-02/,/^endef/ { /KERNEL_SIZE := 6144k/s//KERNEL_SIZE := 12288k/ }" $IMAGE_FILE
+fi
 
