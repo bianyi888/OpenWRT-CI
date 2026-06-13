@@ -72,14 +72,16 @@ jobs:
           DEBIAN_FRONTEND: noninteractive
         run: |
           sudo -E apt -yqq purge firefox
-          sudo -E apt -yqq update
-          sudo -E apt -yqq full-upgrade
-          sudo -E apt -yqq autoremove --purge
-          sudo -E apt -yqq autoclean
-          sudo -E apt -yqq clean
+          # ...保留原来的清理命令...
           sudo -E apt -yqq install dos2unix libfuse-dev
-          sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
+          
+          # 【修改这里】：赋予本地环境脚本执行权限并运行
+          chmod +x $GITHUB_WORKSPACE/Scripts/init_build_environment.sh
+          sudo -E bash $GITHUB_WORKSPACE/Scripts/init_build_environment.sh
+          
           sudo -E systemctl daemon-reload
+          # ...保留后续...
+
           sudo -E timedatectl set-timezone "Asia/Shanghai"
 
           sudo mkdir -p /mnt/build_wrt
