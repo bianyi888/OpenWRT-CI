@@ -8,21 +8,16 @@ name: WRT-TEST
 on:
   #手动编译
   workflow_dispatch:
-    inputs:
+        inputs:
       CONFIG:
-        default: 'MEDIATEK-WIFI-YES'
+        default: 'IPQ60XX-WIFI-NO'
         required: true
         type: choice
         options:
           - IPQ60XX-WIFI-YES
           - IPQ60XX-WIFI-NO
-          - IPQ807X-WIFI-YES
-          - IPQ807X-WIFI-NO
-          - MEDIATEK-WIFI-YES
-          - MEDIATEK-WIFI-NO
-          - ROCKCHIP
-          - X86
           - TEST
+
       SOURCE:
         default: 'VIKINGYFY/immortalwrt'
         required: true
