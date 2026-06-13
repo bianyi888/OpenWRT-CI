@@ -74,3 +74,40 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 		echo "qualcommax set up nowifi successfully!"
 	fi
 fi
+# 【新增】：为 daed 注入 eBPF/BTF 必备的内核支持
+echo "Injecting eBPF and kernel configs..."
+cat >> ./.config <<EOF
+#eBPF 核心依赖
+CONFIG_DEVEL=y
+CONFIG_KERNEL_DEBUG_INFO=y
+CONFIG_KERNEL_DEBUG_INFO_REDUCED=n
+CONFIG_KERNEL_DEBUG_INFO_BTF=y
+CONFIG_KERNEL_CGROUPS=y
+CONFIG_KERNEL_CGROUP_BPF=y
+CONFIG_KERNEL_BPF_EVENTS=y
+CONFIG_BPF_TOOLCHAIN_HOST=y
+CONFIG_KERNEL_XDP_SOCKETS=y
+CONFIG_PACKAGE_kmod-xdp-sockets-diag=y
+EOF
+
+# 将更深层的 BPF 机制写入高通平台的默认内核配置中
+TARGET_CONFIG_DEFAULT=$(find target/linux/qualcommax/ -maxdepth 2 -type f -name "config-default")
+if [ -n "$TARGET_CONFIG_DEFAULT" ]; then
+    for conf in $TARGET_CONFIG_DEFAULT; do
+        cat >> "$conf" <<EOF
+CONFIG_BPF=y
+CONFIG_BPF_SYSCALL=y
+CONFIG_BPF_JIT=y
+CONFIG_CGROUPS=y
+CONFIG_KPROBES=y
+CONFIG_NET_INGRESS=y
+CONFIG_NET_EGRESS=y
+CONFIG_NET_CLS_ACT=y
+CONFIG_DEBUG_INFO_BTF=y
+CONFIG_KPROBE_EVENTS=y
+CONFIG_BPF_EVENTS=y
+CONFIG_NET_SCH_BPF=y
+EOF
+    done
+fi
+
