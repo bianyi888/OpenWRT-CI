@@ -1,4 +1,4 @@
-JSON
+```json
 {
   "project": "亚瑟固件编译",
   "version": 12.5,
