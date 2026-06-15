@@ -1,11 +1,12 @@
-🚀 亚瑟 (JDCloud AX1800 Pro) Daed + Lucky 终极定制文档
+# 🚀 亚瑟 (JDCloud AX1800 Pro) Daed + Lucky 终极定制文档
+
 这份文档记录了为京东云亚瑟编译带有 Daed 和 Lucky 插件的 OpenWrt/ImmortalWrt 固件所需的全部核心修改。
 
-【文件 1】修改 CI 编译环境
-文件路径： .github/workflows/WRT-CORE.yml
-操作说明： 定位到 Initialization Environment 及其前置步骤，将其替换为以下代码，以拉高 Go/Node 版本并补齐 eBPF 工具链。
+## 【文件 1】修改 CI 编译环境
+**文件路径：** `.github/workflows/WRT-CORE.yml`  
+**操作说明：** 定位到 `Initialization Environment` 及其前置步骤，将其替换为以下代码，以拉高 Go/Node 版本并补齐 eBPF 工具链。
 
-YAML
+```yaml
       - name: Checkout Projects
         uses: actions/checkout@main
 
@@ -40,26 +41,32 @@ YAML
           sudo mkdir -p /mnt/build_wrt
           sudo chown $USER:$USER /mnt/build_wrt
           sudo ln -s /mnt/build_wrt $GITHUB_WORKSPACE/wrt
-【文件 2】拉取神级插件源码
-文件路径： Scripts/Packages.sh
-操作说明： 在文件末尾的 UPDATE_VERSION 函数之前，追加以下内容：
+```
 
-Bash
+## 【文件 2】拉取神级插件源码
+**文件路径：** `Scripts/Packages.sh`  
+**操作说明：** 在文件末尾的 `UPDATE_VERSION` 函数之前，追加以下内容：
+
+```bash
 # 科学与网络增强神级插件
 UPDATE_PACKAGE "luci-app-daed" "QiuSimons/luci-app-daed" "kix"
 UPDATE_PACKAGE "luci-app-lucky" "gdy666/luci-app-lucky" "main"
-【文件 3】强制激活固件打包
-文件路径： Config/GENERAL.txt
-操作说明： 在 #增加插件 的列表区域，追加以下内容：
+```
 
-Ini, TOML
+## 【文件 3】强制激活固件打包
+**文件路径：** `Config/GENERAL.txt`  
+**操作说明：** 在 `#增加插件` 的列表区域，追加以下内容：
+
+```ini
 CONFIG_PACKAGE_luci-app-daed=y
 CONFIG_PACKAGE_luci-app-lucky=y
-【文件 4】剔除多余机型，极限瘦身
-文件路径： Config/IPQ60XX-WIFI-NO.txt
-操作说明： 将文件原有内容全部清空并替换为以下精简版代码：
+```
 
-Ini, TOML
+## 【文件 4】剔除多余机型，极限瘦身
+**文件路径：** `Config/IPQ60XX-WIFI-NO.txt`  
+**操作说明：** 将文件原有内容全部清空并替换为以下精简版代码：
+
+```ini
 #设备平台
 CONFIG_TARGET_qualcommax=y
 CONFIG_TARGET_qualcommax_ipq60xx=y
@@ -76,21 +83,25 @@ CONFIG_PACKAGE_ath11k-firmware-ipq6018=n
 CONFIG_PACKAGE_ath11k-firmware-ipq6018-ddwrt=n
 CONFIG_PACKAGE_ath11k-firmware-qcn9074=n
 CONFIG_PACKAGE_ath11k-firmware-qcn9074-ddwrt=n
-【文件 5】底层魔改、DTS 规避与 12M 扩容
-文件路径： Scripts/Settings.sh
+```
 
-修改点 A： 找到原本处理无 WiFi 版设备树的地方，替换为精准狙击版：
+## 【文件 5】底层魔改、DTS 规避与 12M 扩容
+**文件路径：** `Scripts/Settings.sh`
 
-Bash
+**修改点 A：** 找到原本处理无 WiFi 版设备树的地方，替换为精准狙击版：
+
+```bash
 	#无WIFI配置调整Q6大小 (独家精准狙击版)
 	if [[ "${WRT_CONFIG,,}" == *"wifi"* && "${WRT_CONFIG,,}" == *"no"* ]]; then
 		# 仅针对 jdcloud 的设备树进行无 Wi-Fi 替换，避免误伤其他机器引起 DTC 编译报错
 		find $DTS_PATH -type f -name '*jdcloud*' -exec sed -i 's/ipq6018.dtsi/ipq6018-nowifi.dtsi/g' {} +
 		echo "qualcommax set up nowifi successfully for jdcloud!"
 	fi
-修改点 B： 在 Settings.sh 的最末尾，追加以下核心扩容与提权代码：
+```
 
-Bash
+**修改点 B：** 在 `Settings.sh` 的最末尾，追加以下核心扩容与提权代码：
+
+```bash
 # =========================================================
 # 以下为 daed 专属 eBPF 内核注入与 亚瑟专属 12MB 分区扩容逻辑
 # =========================================================
@@ -141,3 +152,4 @@ if [ -f "$IMAGE_FILE" ]; then
     sed -i 's/define Device\/jdcloud_re-cs-02/define Device\/jdcloud_re-cs-02\n  KERNEL_SIZE := 12288k/g' $IMAGE_FILE
     sed -i 's/define Device\/jdcloud_re-cs-07/define Device\/jdcloud_re-cs-07\n  KERNEL_SIZE := 12288k/g' $IMAGE_FILE
 fi
+```
