@@ -130,7 +130,6 @@ rm -rf ../feeds/luci/applications/luci-app-{passwall*,mosdns,dockerman,dae*,bypa
 rm -rf ../feeds/packages/net/{v2ray-geodata,dae*,daed*}
 
 # 2. 全量注入：从你的本地代码库（$GITHUB_WORKSPACE/package）克隆注入满血高定包全家桶
-#    这其中完美包含：luci-app-dae (带中文包及 ccache 补丁)、dae 优化内核、v2ray-geodata 完整套件
 if [ -d "$GITHUB_WORKSPACE/package" ]; then
 	cp -r $GITHUB_WORKSPACE/package/* ./
 	echo "[本地注入] 成功：本地自定义专属软件包矩阵（包含 v2ray-geodata 体系）已全量注入编译区！"
@@ -146,9 +145,17 @@ if [ -f "$GITHUB_WORKSPACE/patches/daed/Makefile" ]; then
 	fi
 fi
 
-# 4. 全局跨核心路径双向对齐守护补丁
-#    利用高级流式文本编辑器（sed）在 sbwml 严谨的 v2ray-geodata/Makefile 编译安装宏中直接编织织入软连接。
-#    确保固件生成时，/usr/share/dae/ 和 /usr/share/daed/ 完美指向带哈希校验的官方规则库，从根源上斩断运行期资产丢失引发的恐慌。
+# 【增补联动守护】4. ccache 编译器优化补丁提前空投至 vlmcsd 编译目录
+if [ -f "$GITHUB_WORKSPACE/patches/001-fix_compile_with_ccache.patch" ]; then
+	VLMCSD_PATCH_DIR="../feeds/packages/net/vlmcsd/patches"
+	if [ -d "../feeds/packages/net/vlmcsd" ]; then
+		mkdir -p "$VLMCSD_PATCH_DIR"
+		cp -f "$GITHUB_WORKSPACE/patches/001-fix_compile_with_ccache.patch" "$VLMCSD_PATCH_DIR/"
+		echo "[核心排雷] 成功：ccache 编译环境修复补丁已提前空投至 vlmcsd 编译母树！"
+	fi
+fi
+
+# 5. 全局跨核心路径双向对齐守护补丁
 GEODATA_MAKEFILE="./v2ray-geodata/Makefile"
 if [ -f "$GEODATA_MAKEFILE" ]; then
 	echo "[路径对齐] 正在为自定义 v2ray-geodata 织入跨代理核心全兼容多向软连接兼容补丁..."
