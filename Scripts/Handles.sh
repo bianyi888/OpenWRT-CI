@@ -26,24 +26,60 @@ fi
 
 #修改argon主题字体和颜色
 if [ -d *"luci-theme-argon"* ]; then
-	echo " "
+    echo " "
+    cd ./luci-theme-argon/
 
-	cd ./luci-theme-argon/
+    # 1. 首先把所有文件恢复到官方原版状态，擦除之前可能修改过的字体、颜色、透明度等
+    git checkout ./luci-app-argon-config/root/etc/config/argon 2>/dev/null || true
+    git checkout *.css *.less 2>/dev/null || true
 
-	sed -i "s/primary '.*'/primary '#31a1a1'/; s/'0.2'/'0.5'/; s/'none'/'bing'/; s/'600'/'normal'/" ./luci-app-argon-config/root/etc/config/argon
+    # 2. 精准修改：仅将背景模式从默认的 'none' (纯色/官方图片) 替换为 'bing' (必应每日壁纸)
+    # 保持官方默认的 0.2 毛玻璃透明度、600 字体粗细和经典极光蓝颜色不变
+    sed -i "s/mode 'none'/mode 'bing'/" ./luci-app-argon-config/root/etc/config/argon
 
-	cd $PKG_PATH && echo "theme-argon has been fixed!"
+    cd $PKG_PATH && echo "theme-argon has been restored to official with Bing wallpaper enabled!"
 fi
 
 #修改aurora菜单式样
-if [ -d *"luci-app-aurora-config"* ]; then
-	echo " "
+if [ -d *"luci-theme-aurora"* ]; then
+    echo " "
+    cd ./luci-theme-aurora/
 
-	cd ./luci-app-aurora-config/
+    # ----------------------------------------------------
+    # 1. 配色升级：将原版略显生硬的蓝色，升级为高级的「冰岛极光绿」
+    #    主色（Active）：#2d746d (松石绿)  |  辅色（Hover）：#3b948a
+    # ----------------------------------------------------
+    find ./ -name "*.css" -o -name "*.less" | xargs sed -i "
+        s/#007aff/#2d746d/g;
+        s/#0051a8/#1b4b46/g;
+        s/#4794ff/#3b948a/g;
+    "
 
-	sed -i "s/nav_submenu_type '.*'/nav_submenu_type 'boxed-dropdown'/g" $(find ./root/ -type f -name "*aurora")
+    # 如果你更喜欢「深邃莫兰迪紫/粉」色系，可以把上面的替换行删掉，改用下面这三行：
+    # find ./ -name "*.css" -o -name "*.less" | xargs sed -i "
+    #     s/#007aff/#7a67ee/g;
+    #     s/#0051a8/#5c4cc4/g;
+    #     s/#4794ff/#9382ff/g;
+    # "
 
-	cd $PKG_PATH && echo "theme-aurora has been fixed!"
+    # ----------------------------------------------------
+    # 2. 字体现代化：告别死板的旧字体，注入苹果/现代系统无衬线高级字体族
+    # ----------------------------------------------------
+    find ./ -name "*.css" -o -name "*.less" | xargs sed -i "
+        s/font-family:[^;]*/font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif/g
+    "
+
+    # ----------------------------------------------------
+    # 3. 质感微调：让卡片和登录框的阴影（Box-shadow）更柔和，边缘更细腻
+    # ----------------------------------------------------
+    find ./ -name "*.css" | xargs sed -i "
+        s/box-shadow: 0 4px 12px rgba(0,0,0,.05)/box-shadow: 0 8px 24px rgba(45,116,109,.06)/g;
+        s/box-shadow:0 4px 12px rgba(0,0,0,.05)/box-shadow: 0 8px 24px rgba(45,116,109,.06)/g;
+        s/border-radius: 4px/border-radius: 8px/g;
+        s/border-radius:4px/border-radius: 8px/g;
+    "
+
+    cd $PKG_PATH && echo "luci-theme-aurora has been beautifully remixed!"
 fi
 
 #修改qca-nss-drv启动顺序
