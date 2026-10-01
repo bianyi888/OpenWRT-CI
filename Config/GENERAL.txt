@@ -15,8 +15,9 @@ CONFIG_PACKAGE_daed=y
 CONFIG_PACKAGE_luci-app-daede=y
 CONFIG_PACKAGE_lucky=y
 CONFIG_PACKAGE_luci-app-lucky=y
-# daed 编 eBPF 要用 LLVM clang 但它的 Makefile 没声明 NEED_BPF_TOOLCHAIN 依赖 不显式打开会导致 tools/llvm-bpf 跳过编译 bpf-headers 因编译器无效而失败
-CONFIG_NEED_BPF_TOOLCHAIN=y
+# daed 编 eBPF 要用 LLVM clang。注意：NEED_BPF_TOOLCHAIN 是无 prompt 的 Kconfig 内部符号，
+# 直接写进 defconfig 会被 Kconfig 静默丢弃（已用 kconfig 本地验证），必须由包 DEPENDS 的 select 触发；
+# 正确修复见 Scripts/Packages.sh（给 daed 的 DEPENDS 补 $(BPF_DEPENDS)），此处不再重复设置。
 # daed 需要内核 BTF（CO-RE eBPF 用） qualcommax 6.18 默认没开 不开的话 daed 会被迫选 vmlinux-btf 包去编影子内核（慢 20-40 分钟） 直接在内核开 BTF 最干净
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
 #删除插件
