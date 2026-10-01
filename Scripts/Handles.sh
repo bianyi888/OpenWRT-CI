@@ -59,3 +59,9 @@ if [ -d "$FEEDS_PATH/packages/lang/rust" ]; then
 		echo "rust fix failed; continuing!"
 	fi
 fi
+
+# daed 需要内核 BTF（eBPF CO-RE），追加到 qualcommax 内核配置
+for _kcfg in ./target/linux/qualcommax/config-*; do
+    grep -q '^CONFIG_DEBUG_INFO_BTF=y$' "$_kcfg" || echo 'CONFIG_DEBUG_INFO_BTF=y' >> "$_kcfg"
+done
+unset _kcfg
