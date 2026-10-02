@@ -92,24 +92,7 @@ UPDATE_PACKAGE "mt5700m" "LianXia233/luci-app-mt5700m" "main"
 UPDATE_PACKAGE "netmonitor" "LianXia233/luci-app-netmonitor" "main"
 UPDATE_PACKAGE "qmodem-generic" "LianXia233/luci-app-qmodem-generic" "main"
 
-UPDATE_PACKAGE "daede" "kenzok8/openwrt-daede" "main" "" "dae daed luci-app-daed"
 UPDATE_PACKAGE "lucky" "gdy666/luci-app-lucky" "main"
-
-# daed 上游 Makefile 引入了 bpf.mk 却没在 DEPENDS 里加 $(BPF_DEPENDS)，
-# 导致 NEED_BPF_TOOLCHAIN（无 prompt 的 Kconfig 内部符号）永远不会被 select，
-# tools/llvm-bpf 被跳过编译，bpf-headers 以 /invalid/clang 编译失败（unknown compiler）。
-# 注意：NEED_BPF_TOOLCHAIN 不能写进 defconfig（Kconfig 会静默丢弃无 prompt 符号的值），只能走 DEPENDS 的 select。
-DAED_MAKEFILE="./package/openwrt-daede/daed/Makefile"
-if [ -f "$DAED_MAKEFILE" ]; then
-	sed -i 's|+DAED_USE_VMLINUX_BTF:vmlinux-btf$|+DAED_USE_VMLINUX_BTF:vmlinux-btf \\\n\t$(BPF_DEPENDS)|' "$DAED_MAKEFILE"
-	if grep -qF '$(BPF_DEPENDS)' "$DAED_MAKEFILE"; then
-		echo "daed Makefile patched: BPF_DEPENDS added to DEPENDS"
-	else
-		echo "ERROR: failed to patch daed Makefile for BPF_DEPENDS" && exit 1
-	fi
-else
-	echo "ERROR: $DAED_MAKEFILE not found" && exit 1
-fi
 
 #更新软件包版本
 UPDATE_VERSION() {
@@ -159,3 +142,4 @@ UPDATE_VERSION() {
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
+
