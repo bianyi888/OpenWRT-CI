@@ -12,13 +12,11 @@ CONFIG_PACKAGE_luci-app-samba4=y
 CONFIG_SAMBA4_SERVER_AVAHI=n
 CONFIG_PACKAGE_luci-app-upnp=y
 CONFIG_PACKAGE_luci-app-wolultra=y
-CONFIG_PACKAGE_mosdns=y
-CONFIG_PACKAGE_luci-app-mosdns=y
 CONFIG_PACKAGE_lucky=y
 CONFIG_PACKAGE_luci-app-lucky=y
 CONFIG_PACKAGE_ttyd=y
 CONFIG_PACKAGE_luci-app-ttyd=y
-# mosdns 做 DNS 分流与劫持（替代 daed 的 DNS 模块）
+# SmartDNS 做 DNS 分流（替代 mosdns，更轻量易用）
 # 内核 BTF 保留（之前为 daed eBPF 开的，去掉 daed 后非必需，但无害）
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
 #删除插件
@@ -147,3 +145,6 @@ CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y
 CONFIG_PACKAGE_dnsmasq-full=y
 CONFIG_PACKAGE_umdns=y
 CONFIG_PACKAGE_ieee-data=y
+
+CONFIG_PACKAGE_smartdns=y
+CONFIG_PACKAGE_luci-app-smartdns=y
