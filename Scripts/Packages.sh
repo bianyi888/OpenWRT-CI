@@ -70,6 +70,24 @@ UPDATE_PACKAGE "vnt" "lmq8267/luci-app-vnt" "main"
 
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
 UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
+# 修复 mosdns 与 luci-app-mosdns 版本不兼容：二进制不认 log.size 和 stats_api
+# 1. 注释掉 init 脚本里加 log.size 的行
+MOSDNS_INIT=$(find ./package/luci-app-mosdns -name "mosdns.init" -o -name "mosdns" -type f 2>/dev/null | head -1)
+if [ -n "$MOSDNS_INIT" ]; then
+  sed -i 's/^\([[:space:]]*\)json_add_string "size" "$log_size"/\1# json_add_string "size" "$log_size"  # patched: mosdns binary does not support log.size/' "$MOSDNS_INIT"
+  echo "Patched mosdns init: $MOSDNS_INIT"
+fi
+# 2. 默认关闭 stats_collector（mosdns 二进制无 stats_api 插件）
+MOSDNS_UCI_DEFAULT=$(find ./package/luci-app-mosdns -name "*.uci-defaults" -o -path "*uci-defaults*" 2>/dev/null | head -5)
+echo "mosdns uci-defaults candidates: $MOSDNS_UCI_DEFAULT"
+# 直接改默认配置文件里的 stats_collector 默认值
+MOSDNS_DEFCONF=$(find ./package/luci-app-mosdns -name "mosdns" -path "*config*" 2>/dev/null | head -3)
+for f in $MOSDNS_DEFCONF; do
+  if grep -q "stats_collector" "$f" 2>/dev/null; then
+    sed -i "s/option stats_collector.*/option stats_collector '0'/" "$f"
+    echo "Patched stats_collector default in: $f"
+  fi
+done
 UPDATE_PACKAGE "openlist2" "sbwml/luci-app-openlist2" "main"
 UPDATE_PACKAGE "qbittorrent" "sbwml/luci-app-qbittorrent" "master" "" "qt6base qt6tools rblibtorrent"
 UPDATE_PACKAGE "quickfile" "sbwml/luci-app-quickfile" "main"
@@ -143,5 +161,6 @@ UPDATE_VERSION() {
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
+
 
 
