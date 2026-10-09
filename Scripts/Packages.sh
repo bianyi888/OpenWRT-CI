@@ -137,7 +137,7 @@ UPDATE_VERSION() {
 #UPDATE_VERSION "sing-box"
 
 # Honk 核心 + LuCI/Doona 管理界面
-UPDATE_PACKAGE "honk" "kenzok8/small" "main" "pkg"
+UPDATE_PACKAGE "honk" "kenzok8/small" "master" "pkg"
 
 
 #引入私有扩展脚本
