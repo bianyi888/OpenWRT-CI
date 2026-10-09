@@ -139,8 +139,6 @@ UPDATE_VERSION() {
 # Honk 核心 + LuCI/Doona 管理界面
 UPDATE_PACKAGE "honk" "kenzok8/small" "main" "pkg"
 
-# Lucky 动态域名
-UPDATE_PACKAGE "lucky" "gdy666/luci-app-lucky" "main"
 
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
