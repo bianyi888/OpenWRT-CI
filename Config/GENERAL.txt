@@ -140,5 +140,4 @@ CONFIG_PACKAGE_kmod-sched-core=y
 CONFIG_PACKAGE_kmod-sched-bpf=y
 CONFIG_PACKAGE_kmod-xdp-sockets-diag=y
 CONFIG_PACKAGE_kmod-nft-fullcone=y
-CONFIG_PACKAGE_fn-knock=y
 CONFIG_PACKAGE_luci-app-lucky=y
