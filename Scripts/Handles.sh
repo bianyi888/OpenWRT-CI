@@ -43,3 +43,6 @@ FIX "natmapt" "$PACKAGE_PATH/luci-app-natmapt" sed -i "s/network/services/g" \
 #修复Rust编译失败
 FIX "rust" "$FEEDS_PATH/packages/lang/rust" sed -i 's/ci-llvm=true/ci-llvm=false/g' \
 	"$FEEDS_PATH/packages/lang/rust/Makefile"
+
+#预置防火墙规则（PT 51413 + lucky 7999）
+FIX "firewall-rules" "$PACKAGE_PATH/base-files" bash -c 	"mkdir -p "$PACKAGE_PATH/base-files/files/etc/uci-defaults" && 	cp "$GITHUB_WORKSPACE/Scripts/99-custom-firewall" 	"$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall" && 	chmod +x "$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall""
