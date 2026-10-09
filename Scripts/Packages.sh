@@ -140,6 +140,3 @@ UPDATE_VERSION() {
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
-
-UPDATE_PACKAGE "honk" "kenzok8/small" "master" "pkg"
-UPDATE_PACKAGE "lucky" "gdy666/luci-app-lucky" "main"
