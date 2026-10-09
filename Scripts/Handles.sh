@@ -43,8 +43,3 @@ FIX "natmapt" "$PACKAGE_PATH/luci-app-natmapt" sed -i "s/network/services/g" \
 #修复Rust编译失败
 FIX "rust" "$FEEDS_PATH/packages/lang/rust" sed -i 's/ci-llvm=true/ci-llvm=false/g' \
 	"$FEEDS_PATH/packages/lang/rust/Makefile"
-
-#亚瑟 RE-SS-01：内核开 BTF 后 uImage.itb 约 7.7MB，超 6M 上限，放大到 8M
-FIX "kernel-size-re-ss-01" "./target/linux/qualcommax/image" sed -i \
-	"/^define Device\/jdcloud_re-ss-01$/,/^endef$/ s/KERNEL_SIZE := 6144k/KERNEL_SIZE := 8192k/" \
-	"./target/linux/qualcommax/image/ipq60xx.mk"
