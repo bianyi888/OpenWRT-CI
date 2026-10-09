@@ -136,6 +136,9 @@ UPDATE_VERSION() {
 #UPDATE_VERSION "软件包名" "测试版，true，可选，默认为否"
 #UPDATE_VERSION "sing-box"
 
+# Honk 核心 + LuCI/Doona 管理界面
+UPDATE_PACKAGE "honk" "kwrum1/openwrt-honk" "main" "pkg"
+
 #引入私有扩展脚本
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
