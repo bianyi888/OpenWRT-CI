@@ -1,0 +1,36 @@
+#!/bin/sh
+# Open-Box 自动安装：WAN 口拨上号后触发，走 gh-proxy 镜像下载，无需代理
+# 放在 /etc/hotplug.d/iface/，接口 up 事件时执行
+
+# 只处理 wan 接口的 ifup 事件
+[ "$ACTION" = "ifup" ] || exit 0
+[ "$INTERFACE" = "wan" ] || exit 0
+
+# 已安装则退出
+[ -f /usr/local/open-box/.installed ] && exit 0
+
+# 防止并发重复执行
+LOCK=/tmp/openbox-install.lock
+[ -f "$LOCK" ] && exit 0
+touch "$LOCK"
+
+# 确认有公网连接（gh-proxy 可达）
+curl -fsSL --max-time 15 https://gh-proxy.com >/dev/null 2>&1 || {
+    rm -f "$LOCK"
+    exit 0
+}
+
+# 下载并安装 Open-Box（面板端口 3036）
+curl -fsSL https://gh-proxy.com/raw.githubusercontent.com/liandu2024/Open-Box/main/scripts/install.sh | sh -s -- --mirror --port 3036
+
+# 标记已安装
+if [ $? -eq 0 ]; then
+    mkdir -p /usr/local/open-box
+    touch /usr/local/open-box/.installed
+    logger -t openbox-hotplug "Open-Box installed successfully"
+else
+    logger -t openbox-hotplug "Open-Box install failed, will retry on next wan ifup"
+fi
+
+rm -f "$LOCK"
+exit 0
