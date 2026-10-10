@@ -47,7 +47,3 @@ FIX "rust" "$FEEDS_PATH/packages/lang/rust" sed -i 's/ci-llvm=true/ci-llvm=false
 #预置防火墙规则（PT 51413 + lucky 7999）
 FIX "openbox-hotplug" "$PACKAGE_PATH/base-files" bash -c 	"mkdir -p "$PACKAGE_PATH/base-files/files/etc/hotplug.d/iface" && 	cp "$GITHUB_WORKSPACE/Scripts/99-openbox-hotplug" 	"$PACKAGE_PATH/base-files/files/etc/hotplug.d/iface/99-openbox" && 	chmod +x "$PACKAGE_PATH/base-files/files/etc/hotplug.d/iface/99-openbox""
 FIX "firewall-rules" "$PACKAGE_PATH/base-files" bash -c 	"mkdir -p "$PACKAGE_PATH/base-files/files/etc/uci-defaults" && 	cp "$GITHUB_WORKSPACE/Scripts/99-custom-firewall" 	"$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall" && 	chmod +x "$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall""
-
-#亚瑟 RE-SS-01：内核开 BTF 后 uImage.itb 约 7.7MB，超 6M 上限，放大到 8M
-	"/^define Device\/jdcloud_re-ss-01$/,/^endef$/ s/KERNEL_SIZE := 6144k/KERNEL_SIZE := 8192k/" \
-	"./target/linux/qualcommax/image/ipq60xx.mk"
