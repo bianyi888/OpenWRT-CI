@@ -48,6 +48,5 @@ FIX "rust" "$FEEDS_PATH/packages/lang/rust" sed -i 's/ci-llvm=true/ci-llvm=false
 FIX "firewall-rules" "$PACKAGE_PATH/base-files" bash -c 	"mkdir -p "$PACKAGE_PATH/base-files/files/etc/uci-defaults" && 	cp "$GITHUB_WORKSPACE/Scripts/99-custom-firewall" 	"$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall" && 	chmod +x "$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall""
 
 #亚瑟 RE-SS-01：内核开 BTF 后 uImage.itb 约 7.7MB，超 6M 上限，放大到 8M
-FIX "kernel-size-re-ss-01" "./target/linux/qualcommax/image" sed -i \
 	"/^define Device\/jdcloud_re-ss-01$/,/^endef$/ s/KERNEL_SIZE := 6144k/KERNEL_SIZE := 8192k/" \
 	"./target/linux/qualcommax/image/ipq60xx.mk"
