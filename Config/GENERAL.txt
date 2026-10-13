@@ -11,6 +11,9 @@ CONFIG_PACKAGE_v2ray-geosite=y
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
 CONFIG_PACKAGE_kmod-sched-core=y
 CONFIG_PACKAGE_kmod-sched-bpf=y
+# eBPF 编译工具链：daed 的 PKG_BUILD_DEPENDS 含 bpf-headers，需要 host clang；
+# DEVEL=y 时默认不启用任何 LLVM（/invalid/clang），源码编 LLVM 太慢，改用 runner 的系统 clang
+CONFIG_BPF_TOOLCHAIN_HOST=y
 #增加插件
 CONFIG_PACKAGE_luci-app-autoreboot=y
 CONFIG_PACKAGE_luci-app-gecoosac=y
