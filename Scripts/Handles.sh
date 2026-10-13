@@ -45,5 +45,5 @@ FIX "rust" "$FEEDS_PATH/packages/lang/rust" sed -i 's/ci-llvm=true/ci-llvm=false
 	"$FEEDS_PATH/packages/lang/rust/Makefile"
 
 #预置防火墙规则（PT 51413 + lucky 7999）
-FIX "openbox-hotplug" "$PACKAGE_PATH/base-files" bash -c 	"mkdir -p "$PACKAGE_PATH/base-files/files/etc/hotplug.d/iface" && 	cp "$GITHUB_WORKSPACE/Scripts/99-openbox-hotplug" 	"$PACKAGE_PATH/base-files/files/etc/hotplug.d/iface/99-openbox" && 	chmod +x "$PACKAGE_PATH/base-files/files/etc/hotplug.d/iface/99-openbox""
 FIX "firewall-rules" "$PACKAGE_PATH/base-files" bash -c 	"mkdir -p "$PACKAGE_PATH/base-files/files/etc/uci-defaults" && 	cp "$GITHUB_WORKSPACE/Scripts/99-custom-firewall" 	"$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall" && 	chmod +x "$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-custom-firewall""
+FIX "dns-redirect-off" "$PACKAGE_PATH/base-files" bash -c 	"mkdir -p "$PACKAGE_PATH/base-files/files/etc/uci-defaults" && 	cp "$GITHUB_WORKSPACE/Scripts/99-dns-redirect-off" 	"$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-dns-redirect-off" && 	chmod +x "$PACKAGE_PATH/base-files/files/etc/uci-defaults/99-dns-redirect-off""
