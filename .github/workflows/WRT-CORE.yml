@@ -81,7 +81,7 @@ jobs:
           sudo -E apt -yqq autoremove --purge
           sudo -E apt -yqq autoclean
           sudo -E apt -yqq clean
-          sudo -E apt -yqq install dos2unix libfuse-dev dwarves
+          sudo -E apt -yqq install dos2unix libfuse-dev dwarves clang llvm
           sudo bash -c 'bash <(curl -sL https://build-scripts.immortalwrt.org/init_build_environment.sh)'
           sudo -E systemctl daemon-reload
           sudo -E timedatectl set-timezone "Asia/Shanghai"
@@ -89,6 +89,19 @@ jobs:
           sudo mkdir -p /mnt/build_wrt
           sudo chown $USER:$USER /mnt/build_wrt
           sudo ln -s /mnt/build_wrt $GITHUB_WORKSPACE/wrt
+
+      - name: Normalize LLVM Tool Names
+        run: |
+          # bpf.mk 用 host 工具链时只认 clang/llc/opt/llvm-dis/llvm-strip（无版本号后缀），
+          # Ubuntu 的包提供的是 clang-18/llc-18 这类带后缀名，缺哪个就补软链
+          for t in clang llc opt llvm-dis llvm-strip; do
+            if ! command -v "$t" >/dev/null 2>&1; then
+              v=$(ls /usr/bin/"$t"-* 2>/dev/null | head -1)
+              if [ -n "$v" ]; then sudo ln -sf "$v" "/usr/local/bin/$t"; echo "linked: $t -> $v"; fi
+            fi
+          done
+          clang --version | head -1
+          for t in llc opt llvm-dis llvm-strip; do command -v "$t"; done
 
       - name: Initialization Values
         id: initialize-values
