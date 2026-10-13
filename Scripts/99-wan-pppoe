@@ -1,0 +1,10 @@
+#!/bin/sh
+# 默认 WAN 口使用 PPPoE 拨号（账号密码需用户手动填写）
+# 首次开机自动执行
+
+uci set network.wan.proto='pppoe'
+uci set network.wan.username=''
+uci set network.wan.password=''
+uci commit network
+/etc/init.d/network reload >/dev/null 2>&1
+exit 0
