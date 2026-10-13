@@ -66,15 +66,9 @@ UPDATE_PACKAGE "easytier" "EasyTier/luci-app-easytier" "main"
 UPDATE_PACKAGE "qmodem" "FUjr/QModem" "main"
 UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac sing-box luci-app-homeproxy luci-app-timewol luci-app-wolplus luci-app-wolultra"
 UPDATE_PACKAGE "vnt" "lmq8267/luci-app-vnt" "main"
-# daede: 手动克隆并复制 dae/daed/luci-app-daede（UPDATE_PACKAGE 的 pkg 模式无法同时匹配三个目录）
-rm -rf package/openwrt-daede-tmp
-git clone --depth=1 --single-branch --branch main https://github.com/kenzok8/openwrt-daede.git package/openwrt-daede-tmp
-rm -rf package/dae package/daed package/luci-app-daede
-mv package/openwrt-daede-tmp/dae package/dae
-mv package/openwrt-daede-tmp/daed package/daed
-mv package/openwrt-daede-tmp/luci-app-daede package/luci-app-daede
-rm -rf package/openwrt-daede-tmp
-echo "daede packages prepared: dae, daed, luci-app-daede"
+# ==================== openwrt-daede ====================
+# 第5个参数传入互斥包名列表，自动清理 feeds 中可能冲突的原版组件，并保留完整的子包（包含 vmlinux-btf）
+UPDATE_PACKAGE "daede" "kenzok8/openwrt-daede" "main" "" "dae daed luci-app-daede vmlinux-btf"
 
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
 UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
