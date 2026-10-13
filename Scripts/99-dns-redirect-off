@@ -1,0 +1,23 @@
+#!/bin/sh
+# 默认关闭 DNS 重定向（避免绕过 daed/honk 的 eBPF DNS 拦截导致泄漏）
+# 首次开机自动执行
+
+# 1. 关掉 firewall 的 DNS hijack（如果有）
+uci -q set firewall.@defaults[0].dns_redirect='0'
+
+# 2. 删除所有 dport 53 的 redirect 规则（按端口特征删，不依赖名称）
+for sec in $(uci show firewall | grep "=redirect" | cut -d. -f2 | cut -d= -f1); do
+  dport=$(uci -q get firewall.$sec.src_dport)
+  dest_port=$(uci -q get firewall.$sec.dest_port)
+  if [ "$dport" = "53" ] || [ "$dest_port" = "53" ]; then
+    uci -q delete firewall.$sec
+  fi
+done
+
+# 3. 关掉 dhcp 的 DNS 重定向选项（如果有）
+uci -q set dhcp.@dnsmasq[0].dns_redirect='0'
+
+uci commit firewall
+uci commit dhcp
+/etc/init.d/firewall reload >/dev/null 2>&1
+exit 0
