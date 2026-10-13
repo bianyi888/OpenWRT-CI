@@ -9,6 +9,9 @@ UPDATE_PACKAGE() {
 	local PKG_BRANCH=$3
 	local PKG_SPECIAL=$4
 	local PKG_LIST=("$PKG_NAME" $5)  # 第5个参数为自定义名称列表
+	local PKG_EXCLUDE=($6)         # 第6个参数为清理白名单（精确目录名），防止短匹配模式误伤无辜包
+	                              # 例: 第5参数里的 "dae" 会命中 feeds/packages/libs/libdaemon（avahi-dbus 的依赖），
+	                              #     必须用第6参数 "libdaemon" 把它排除，否则 avahi 编译报 libdaemon >= 0.14 缺失
 	local REPO_NAME=${PKG_REPO#*/}
 	local REPO_PATH="./package/$REPO_NAME"
 
@@ -20,11 +23,23 @@ UPDATE_PACKAGE() {
 		echo "Search directory: $NAME"
 		local FOUND_DIRS=$(find ./feeds/luci/ ./feeds/packages/ -maxdepth 3 -type d -iname "*$NAME*" 2>/dev/null)
 
-		# 删除找到的目录
+		# 删除找到的目录（白名单里的精确目录名跳过不删）
 		if [ -n "$FOUND_DIRS" ]; then
 			while read -r DIR; do
-				rm -rf "$DIR"
-				echo "Delete directory: $DIR"
+				local BASE_DIR=$(basename "$DIR")
+				local SKIP_DIR=false
+				for EX in "${PKG_EXCLUDE[@]}"; do
+					if [[ "$BASE_DIR" == "$EX" ]]; then
+						SKIP_DIR=true
+						break
+					fi
+				done
+				if $SKIP_DIR; then
+					echo "Skip excluded directory: $DIR"
+				else
+					rm -rf "$DIR"
+					echo "Delete directory: $DIR"
+				fi
 			done <<< "$FOUND_DIRS"
 		else
 			echo "Not fonud directory: $NAME"
@@ -45,7 +60,9 @@ UPDATE_PACKAGE() {
 # UPDATE_PACKAGE "OpenAppFilter" "destan19/OpenAppFilter" "master" "" "custom_name1 custom_name2"
 # UPDATE_PACKAGE "open-app-filter" "destan19/OpenAppFilter" "master" "" "luci-app-appfilter oaf" 这样会把原有的open-app-filter，luci-app-appfilter，oaf相关组件删除，不会出现coremark错误。
 
-# UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件"
+# UPDATE_PACKAGE "包名" "项目地址" "项目分支" "pkg，可选，从大杂烩中单独提取包名插件" "清理列表，可选" "清理白名单，可选"
+# 第6参数为清理白名单（空格分隔的精确目录名）：第5参数的短 token（如 "dae"）会用 *$NAME* 模糊匹配，
+# 可能误伤 feeds 里无辜的包（如 feeds/packages/libs/libdaemon），白名单里的目录会被跳过不删。
 UPDATE_PACKAGE "argon" "sbwml/luci-theme-argon" "openwrt-25.12"
 UPDATE_PACKAGE "aurora" "eamonxg/luci-theme-aurora" "master"
 UPDATE_PACKAGE "aurora-config" "eamonxg/luci-app-aurora-config" "master"
@@ -68,7 +85,8 @@ UPDATE_PACKAGE "viking" "VIKINGYFY/packages" "main" "" "axonhub gecoosac sing-bo
 UPDATE_PACKAGE "vnt" "lmq8267/luci-app-vnt" "main"
 # ==================== openwrt-daede ====================
 # 第5个参数传入互斥包名列表，自动清理 feeds 中可能冲突的原版组件，并保留完整的子包（包含 vmlinux-btf）
-UPDATE_PACKAGE "daede" "kenzok8/openwrt-daede" "main" "" "dae daed luci-app-daede vmlinux-btf"
+# 第6个参数 "libdaemon" 为清理白名单：*dae* 会误伤 feeds/packages/libs/libdaemon（avahi-dbus 依赖），必须排除
+UPDATE_PACKAGE "daede" "kenzok8/openwrt-daede" "main" "" "dae daed luci-app-daede vmlinux-btf" "libdaemon"
 
 UPDATE_PACKAGE "diskman" "sbwml/luci-app-diskman" "main"
 UPDATE_PACKAGE "mosdns" "sbwml/luci-app-mosdns" "v5" "" "v2dat"
@@ -145,3 +163,4 @@ UPDATE_VERSION() {
 if [ -f "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh" ]; then
 	source "$GITHUB_WORKSPACE/Scripts/PRIVATE.sh"
 fi
+
