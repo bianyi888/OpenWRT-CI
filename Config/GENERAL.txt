@@ -4,7 +4,6 @@
 CONFIG_PACKAGE_daed=y
 CONFIG_PACKAGE_luci-app-daede=y
 CONFIG_PACKAGE_luci-i18n-daede-zh-cn=y
-CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
 # 核心路由数据库（daed 启动硬依赖，CI 环境显式写上防漏打包）
 CONFIG_PACKAGE_v2ray-geoip=y
 CONFIG_PACKAGE_v2ray-geosite=y
