@@ -52,13 +52,15 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 	fi
 fi
 
-# BTF 内核镜像超限修复：jdcloud 三台设备 KERNEL_SIZE 6144k→8192k（BTF 使内核达 7.3MB，超 6M 限制致 check-size 删镜像）
-for _dev in "RE-SS-01" "RE-CS-02" "RE-CS-07"; do
-  awk -v dev="$_dev" '
-    /DEVICE_MODEL := JDCloud/{jd=1}
-    jd && $0 ~ "DEVICE_MODEL := "dev{target=1; jd=0}
-    target && /KERNEL_SIZE := 6144k/{$0="	KERNEL_SIZE := 8192k"; target=0}
-    {print}
-  ' ./target/linux/qualcommax/image/ipq60xx.mk > ./target/linux/qualcommax/image/ipq60xx.mk.new && mv ./target/linux/qualcommax/image/ipq60xx.mk.new ./target/linux/qualcommax/image/ipq60xx.mk
-done
+# BTF 内核镜像超限修复：JDCloud 三台设备 KERNEL_SIZE 6144k→8192k（BTF 使内核达 7.3MB，超 6M 限制致 check-size 删镜像）
+python3 << 'PYEOF2'
+import re
+p = './target/linux/qualcommax/image/ipq60xx.mk'
+s = open(p).read()
+for dev in ['RE-SS-01', 'RE-CS-02', 'RE-CS-07']:
+    pat = re.compile(r'(DEVICE_MODEL := ' + dev + r'\n(?:.*\n)*?\tKERNEL_SIZE := )6144k')
+    s, n = pat.subn(r'\g<1>8192k', s, count=1)
+    print(dev + ': patched ' + str(n) + ' line(s)')
+open(p, 'w').write(s)
+PYEOF2
 echo "KERNEL_SIZE patched for JDCloud devices"
