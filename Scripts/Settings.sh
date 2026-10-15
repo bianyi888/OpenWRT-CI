@@ -51,16 +51,3 @@ if [[ "${WRT_TARGET^^}" == *"QUALCOMMAX"* ]]; then
 		echo "qualcommax set up nowifi successfully!"
 	fi
 fi
-
-# BTF 内核镜像超限修复：JDCloud 三台设备 KERNEL_SIZE 6144k→12288k（BTF 使内核达 7.3MB，超 6M 限制致 check-size 删镜像）
-python3 << 'PYEOF2'
-import re
-p = './target/linux/qualcommax/image/ipq60xx.mk'
-s = open(p).read()
-for dev in ['RE-SS-01', 'RE-CS-02', 'RE-CS-07']:
-    pat = re.compile(r'(DEVICE_MODEL := ' + dev + r'\n(?:.*\n)*?\tKERNEL_SIZE := )6144k')
-    s, n = pat.subn(r'\g<1>12288k', s, count=1)
-    print(dev + ': patched ' + str(n) + ' line(s)')
-open(p, 'w').write(s)
-PYEOF2
-echo "KERNEL_SIZE patched for JDCloud devices"
