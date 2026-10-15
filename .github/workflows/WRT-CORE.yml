@@ -206,50 +206,37 @@ jobs:
 
           make download -j$(nproc)
 
+      - name: Fetch reF1nd sing-box binary
+        if: ${{ !inputs.WRT_TEST }}
+        run: |
+          case "${WRT_TARGET:-}" in
+            x86*) SB_ARCH="linux-amd64" ;;
+            *) SB_ARCH="linux-arm64" ;;
+          esac
+          VER=$(curl -s https://api.github.com/repos/reF1nd/sing-box-releases/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)
+          echo "Latest reF1nd sing-box: $VER"
+          SB_VER="${VER#v}"
+          mkdir -p /tmp/sbdl && cd /tmp/sbdl
+          wget -q "https://github.com/reF1nd/sing-box-releases/releases/download/${VER}/sing-box-${SB_VER}-${SB_ARCH}-musl.tar.gz" -O sb.tar.gz || wget -q "https://github.com/reF1nd/sing-box-releases/releases/download/${VER}/sing-box-${SB_VER}-${SB_ARCH}-glibc.tar.gz" -O sb.tar.gz || echo "DOWNLOAD_FAILED"
+          if [ -f sb.tar.gz ]; then
+            tar xzf sb.tar.gz
+            SB_BIN=$(find . -name "sing-box" -type f | head -1)
+            if [ -n "$SB_BIN" ]; then
+              mkdir -p "$GITHUB_WORKSPACE/wrt/files/usr/bin"
+              cp -f "$SB_BIN" "$GITHUB_WORKSPACE/wrt/files/usr/bin/sing-box"
+              chmod +x "$GITHUB_WORKSPACE/wrt/files/usr/bin/sing-box"
+              echo "sing-box $VER placed in files overlay"
+            fi
+          else
+            echo "reF1nd download failed, keeping feed version"
+          fi
+
       - name: Compile Firmware
         if: ${{ !inputs.WRT_TEST }}
         run: |
           cd ./wrt/
 
           make -j$(nproc) || make -j1 V=s
-
-      - name: Replace sing-box with reF1nd latest
-        if: ${{ !inputs.WRT_TEST }}
-        run: |
-          cd ./wrt/
-
-          # 根据编译目标选择 sing-box 架构（OpenWrt 均为 musl）
-          case "$WRT_TARGET" in
-            x86*) SB_ARCH="linux-amd64" ;;
-            *)    SB_ARCH="linux-arm64" ;;
-          esac
-
-          SB_VER=$(curl -sL https://api.github.com/repos/reF1nd/sing-box-releases/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)
-          echo "Latest reF1nd sing-box: $SB_VER (target: $WRT_TARGET, arch: $SB_ARCH)"
-
-          SB_OK=""
-          for SB_LIBC in musl glibc; do
-            SB_URL="https://github.com/reF1nd/sing-box-releases/releases/download/${SB_VER}/sing-box-${SB_VER#v}-${SB_ARCH}-${SB_LIBC}.tar.gz"
-            echo "Downloading: $SB_URL"
-            if wget -q "$SB_URL" -O /tmp/singbox.tar.gz; then SB_OK="$SB_LIBC"; break; fi
-          done
-
-          if [ -z "$SB_OK" ]; then
-            echo "Download failed, keeping feed version of sing-box"
-          else
-            rm -rf /tmp/singbox && mkdir -p /tmp/singbox
-            tar xzf /tmp/singbox.tar.gz -C /tmp/singbox
-            SB_BIN=$(find /tmp/singbox -name "sing-box" -type f | head -1)
-            if [ -n "$SB_BIN" ]; then
-              # 找到编译目录里 feed 编出来的 sing-box 二进制并替换
-              find ./build_dir ./staging_dir -name "sing-box" -type f -exec cp -f "$SB_BIN" {} ';' 2>/dev/null
-              echo "sing-box replaced with $SB_VER ($SB_OK)"
-              "$SB_BIN" version 2>/dev/null | head -1 || true
-            else
-              echo "reF1nd binary not found in archive, keeping feed version"
-            fi
-          fi
-
 
       - name: Save Build Cache
         if: ${{ !inputs.WRT_TEST && success() && steps.cache-restore.outputs.cache-hit != 'true' }}
