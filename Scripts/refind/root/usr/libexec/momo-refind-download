@@ -1,0 +1,52 @@
+#!/bin/sh
+# Download only verified reF1nd musl builds. Also used by the firmware CI.
+set -eu
+umask 077
+REPO=reF1nd/sing-box-releases
+TAG=${1:-latest}
+ARCH=${2:?architecture required}
+DEST=${3:?destination directory required}
+case "$TAG" in *[!A-Za-z0-9.+_-]*) echo 'Invalid release tag' >&2; exit 1;; esac
+case "$ARCH" in arm64|amd64) ;; *) echo 'Unsupported architecture' >&2; exit 1;; esac
+case "$TAG" in latest) ENDPOINT=latest;;
+    v*) echo "$TAG" | grep -Eq '^v[0-9][A-Za-z0-9.+_-]*-reF1nd$' || exit 1; ENDPOINT="tags/$TAG";;
+    *) echo 'Use latest or a full v…-reF1nd release tag' >&2; exit 1;;
+esac
+for tool in curl jq sha256sum tar; do command -v "$tool" >/dev/null || exit 1; done
+mkdir -p "$DEST"
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+trap 'exit 1' HUP INT TERM
+fetch() {
+    curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
+        --connect-timeout 15 --max-time 300 --retry 2 "$1" -o "$2"
+}
+fetch "https://api.github.com/repos/$REPO/releases/$ENDPOINT" "$WORK/release.json"
+VERSION=$(jq -er '.tag_name' "$WORK/release.json")
+case "$VERSION" in *[!A-Za-z0-9.+_-]*) exit 1;; esac
+echo "$VERSION" | grep -Eq '^v[0-9][A-Za-z0-9.+_-]*-reF1nd$' || exit 1
+[ "$TAG" = latest ] || [ "$TAG" = "$VERSION" ]
+jq -e '.draft == false and .prerelease == false' "$WORK/release.json" >/dev/null
+NAME="sing-box-${VERSION#v}-linux-$ARCH-musl.tar.gz"
+jq -e --arg name "$NAME" '[.assets[] | select(.name == $name)] | length == 1' "$WORK/release.json" >/dev/null
+jq --arg name "$NAME" '.assets[] | select(.name == $name)' "$WORK/release.json" > "$WORK/asset.json"
+URL=$(jq -er '.browser_download_url' "$WORK/asset.json")
+[ "$URL" = "https://github.com/$REPO/releases/download/$VERSION/$NAME" ]
+DIGEST=$(jq -er '.digest | select(test("^sha256:[a-f0-9]{64}$"))' "$WORK/asset.json")
+echo "Downloading $NAME"
+fetch "$URL" "$WORK/core.tar.gz"
+printf '%s  %s\n' "${DIGEST#sha256:}" "$WORK/core.tar.gz" | sha256sum -c -
+# Extract only one named binary to stdout; never unpack arbitrary archive paths.
+tar -tzf "$WORK/core.tar.gz" > "$WORK/members"
+MEMBER=$(grep -E '^([A-Za-z0-9._+-]+/)?sing-box$' "$WORK/members")
+[ "$(printf '%s\n' "$MEMBER" | wc -l)" -eq 1 ]
+tar -xzOf "$WORK/core.tar.gz" "$MEMBER" > "$WORK/sing-box"
+[ -s "$WORK/sing-box" ]
+chmod 755 "$WORK/sing-box"
+BINARY_SHA=$(sha256sum "$WORK/sing-box" | cut -d ' ' -f 1)
+jq -n --arg version "$VERSION" --arg arch "$ARCH" --arg asset "$NAME" \
+    --arg digest "$DIGEST" --arg binary_sha256 "$BINARY_SHA" \
+    '{version:$version,arch:$arch,asset:$asset,digest:$digest,binary_sha256:$binary_sha256,source:"reF1nd/sing-box-releases"}' > "$WORK/release-meta.json"
+mv "$WORK/sing-box" "$DEST/sing-box"
+mv "$WORK/release-meta.json" "$DEST/release-meta.json"
+echo "Verified $VERSION ($ARCH, musl)"

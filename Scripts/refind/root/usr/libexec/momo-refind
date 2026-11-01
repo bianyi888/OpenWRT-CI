@@ -1,0 +1,180 @@
+#!/bin/sh
+# Privileged updater, invoked only through the dedicated authenticated rpcd ACL.
+set -eu
+umask 077
+CORE=/usr/bin/sing-box
+STATE=/etc/momo/refind-core
+LOCK=/var/lock/momo-refind
+STATUS=/var/run/momo-refind.json
+LOG=/var/log/momo-refind.log
+DOWNLOADER=/usr/libexec/momo-refind-download
+RUN=/etc/momo/run
+STAGE=
+REPLACED=0
+BACKUP_READY=0
+
+write_status() {
+    jq -n --arg state "$1" --arg message "$2" \
+        '{state:$state,message:$message}' > "$STATUS.tmp"
+    mv "$STATUS.tmp" "$STATUS"
+}
+version_of() { "$1" version 2>/dev/null | sed -n '1p'; }
+running() {
+    ubus call service list '{"name":"momo"}' | \
+        jq -e 'any(.momo.instances[]?; .running == true)' >/dev/null && pidof sing-box >/dev/null
+}
+healthy() {
+    # Allow initial startup, then require a stable procd instance (no respawn).
+    count=0
+    while ! running; do
+        count=$((count + 1))
+        [ "$count" -lt 15 ] || return 1
+        sleep 1
+    done
+    FIRST_PID=$(ubus call service list '{"name":"momo"}' | jq -er '.momo.instances.momo.pid | select(. > 0)')
+    count=0
+    while [ "$count" -lt 10 ]; do
+        sleep 1
+        running || return 1
+        [ "$(ubus call service list '{"name":"momo"}' | jq -er '.momo.instances.momo.pid')" = "$FIRST_PID" ] || return 1
+        count=$((count + 1))
+    done
+}
+replace_core() {
+    cp "$1" /usr/bin/.sing-box.refind-new
+    chmod 755 /usr/bin/.sing-box.refind-new
+    mv -f /usr/bin/.sing-box.refind-new "$CORE"
+}
+finish() {
+    result=$?
+    trap - EXIT HUP INT TERM
+    if [ "$result" -ne 0 ]; then
+        if [ "$REPLACED" -eq 1 ] && [ "$BACKUP_READY" -eq 1 ]; then
+            echo 'Update failed; restoring the original core.'
+            /etc/init.d/momo stop || true
+            if replace_core "$STAGE/original" && /etc/init.d/momo start && healthy; then
+                for key in current previous; do
+                    if [ -f "$STAGE/original-$key.json" ]; then
+                        cp "$STAGE/original-$key.json" "$STATE/$key.json" || true
+                    else
+                        rm -f "$STATE/$key.json"
+                    fi
+                done
+                write_status error '更新失败，已恢复原内核；请查看日志。'
+            else
+                # Retain the rescue binary even if storage or service recovery fails.
+                cp "$STAGE/original" "$STATE/rescue" || true
+                write_status error '更新失败，自动恢复未通过检查。请查看日志及 /etc/momo/refind-core/rescue。'
+            fi
+        else
+            write_status error '操作未完成，内核未替换；请查看日志。'
+        fi
+    fi
+    [ -z "$STAGE" ] || rm -rf "$STAGE"
+    rm -f /usr/bin/.sing-box.refind-new
+    rm -rf "$LOCK"
+    exit "$result"
+}
+worker() {
+    trap finish EXIT
+    trap 'exit 1' HUP INT TERM
+    mkdir -p "$STATE"
+    STAGE=$(mktemp -d "$STATE/.stage.XXXXXX")
+    echo "Action: $1; requested release: $2"
+    echo "Current: $(version_of "$CORE")"
+    for tool in jq curl sha256sum tar ubus pidof; do command -v "$tool" >/dev/null; done
+    # Restrict this integration to the user's Arthur firmware architecture.
+    [ "$(uname -m)" = aarch64 ] || { echo 'Only aarch64/Arthur is supported.'; exit 1; }
+    [ -f /lib/ld-musl-aarch64.so.1 ] || { echo 'musl aarch64 loader missing'; exit 1; }
+    running || { echo 'Start momo successfully before changing its core.'; exit 1; }
+    [ -s "$RUN/config.json" ] || { echo 'momo runtime configuration is missing.'; exit 1; }
+    # Reserve space for the current backup and replacement, before downloading.
+    SIZE=$(wc -c < "$CORE")
+    FREE=$(df -Pk /usr/bin | awk 'END {print $4}')
+    [ "$FREE" -gt "$((SIZE * 3 / 1024 + 16384))" ] || { echo 'Insufficient overlay storage.'; exit 1; }
+    if [ "$1" = update ]; then
+        write_status running '正在下载并校验 reF1nd 内核……'
+        "$DOWNLOADER" "$2" arm64 "$STAGE"
+    else
+        [ -x "$STATE/previous" ] || { echo 'No previous core available.'; exit 1; }
+        cp "$STATE/previous" "$STAGE/sing-box"
+        [ ! -f "$STATE/previous.json" ] || cp "$STATE/previous.json" "$STAGE/release-meta.json"
+    fi
+    NEXT=$(version_of "$STAGE/sing-box")
+    echo "Candidate: $NEXT"
+    case "$NEXT" in *sing-box*reF1nd*) ;; *) echo 'Candidate is not a reF1nd core.'; exit 1;; esac
+    if [ -f "$STAGE/release-meta.json" ]; then
+        EXPECTED=$(jq -er '.version' "$STAGE/release-meta.json")
+        [ "$NEXT" = "sing-box version ${EXPECTED#v}" ] || { echo 'Binary version does not match release metadata.'; exit 1; }
+    fi
+    # Recheck with actual binary size before any service or binary changes.
+    NEXT_SIZE=$(wc -c < "$STAGE/sing-box")
+    FREE=$(df -Pk /usr/bin | awk 'END {print $4}')
+    [ "$FREE" -gt "$(((SIZE + NEXT_SIZE) / 1024 + 8192))" ] || exit 1
+    echo 'Checking current momo configuration with the new core.'
+    "$STAGE/sing-box" -D "$RUN" check
+    if [ "$(sha256sum "$CORE" | cut -d ' ' -f 1)" = "$(sha256sum "$STAGE/sing-box" | cut -d ' ' -f 1)" ]; then
+        write_status success '当前已是该版本，无需替换。'
+        exit 0
+    fi
+    cp "$CORE" "$STAGE/original"
+    chmod 755 "$STAGE/original"
+    for key in current previous; do
+        [ ! -f "$STATE/$key.json" ] || cp "$STATE/$key.json" "$STAGE/original-$key.json"
+    done
+    BACKUP_READY=1
+    write_status running '配置检查通过，正在切换内核并检查 momo……'
+    # Mark before stopping: a failed stop/start must also restore the service.
+    REPLACED=1
+    /etc/init.d/momo stop
+    replace_core "$STAGE/sing-box"
+    /etc/init.d/momo start
+    healthy
+    # Do not discard the older rollback copy until the replacement passed checks.
+    if [ -f "$STATE/current.json" ]; then
+        cp "$STATE/current.json" "$STATE/previous.json"
+    else
+        rm -f "$STATE/previous.json"
+    fi
+    if [ -f "$STAGE/release-meta.json" ]; then
+        cp "$STAGE/release-meta.json" "$STATE/current.json"
+    else
+        rm -f "$STATE/current.json"
+    fi
+    mv -f "$STAGE/original" "$STATE/previous"
+    REPLACED=0
+    echo "Active: $(version_of "$CORE")"
+    write_status success '内核切换成功，momo 连续运行检查通过。'
+}
+
+case "${1:-status}" in
+    status)
+        if [ -f "$LOCK/pid" ] && ! kill -0 "$(cat "$LOCK/pid")" 2>/dev/null; then
+            # Never erase a potentially interrupted transaction's rescue files.
+            write_status error '上次操作被中断。请检查日志；暂存备份保留在 /etc/momo/refind-core/.stage.*。'
+            rm -rf "$LOCK"
+        fi
+        [ -f "$STATUS" ] || write_status idle '尚未执行更新。'
+        BUSY=false; [ ! -d "$LOCK" ] || BUSY=true
+        PREVIOUS=''; [ ! -x "$STATE/previous" ] || PREVIOUS=$(version_of "$STATE/previous")
+        jq --arg current "$(version_of "$CORE")" --arg previous "$PREVIOUS" \
+            --arg log "$(tail -c 12000 "$LOG" 2>/dev/null || true)" --argjson busy "$BUSY" \
+            '. + {current:$current,previous:$previous,busy:$busy,log:$log}' "$STATUS"
+        ;;
+    start)
+        ACTION=${2:-}; TAG=${3:-latest}
+        case "$ACTION" in update|rollback) ;; *) exit 1;; esac
+        case "$TAG" in *[!A-Za-z0-9.+_-]*) exit 1;; esac
+        case "$TAG" in latest) ;; *) echo "$TAG" | grep -Eq '^v[0-9][A-Za-z0-9.+_-]*-reF1nd$' || exit 1;; esac
+        mkdir -p /var/lock /var/run /var/log
+        if ! mkdir "$LOCK" 2>/dev/null; then echo '{"accepted":false,"message":"已有更新操作在进行，请稍后再试。"}'; exit 0; fi
+        write_status running '正在准备内核操作……'
+        : > "$LOG"
+        nohup "$0" worker "$ACTION" "$TAG" > "$LOG" 2>&1 < /dev/null &
+        # The worker may already have finished (and removed its lock).
+        { echo "$!" > "$LOCK/pid"; } 2>/dev/null || true
+        echo '{"accepted":true}'
+        ;;
+    worker) worker "$2" "$3" ;;
+    *) exit 1;;
+esac

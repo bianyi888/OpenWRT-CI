@@ -1,0 +1,20 @@
+#!/bin/sh
+# rpcd's executable plugin protocol. No arbitrary paths or commands are accepted.
+case "$1" in
+    list)
+        echo '{"status":{},"start":{"action":"","version":""}}'
+        ;;
+    call)
+        case "$2" in
+            status) exec /usr/libexec/momo-refind status;;
+            start)
+                INPUT=$(cat)
+                ACTION=$(printf '%s' "$INPUT" | jq -er '.action | strings') || exit 1
+                VERSION=$(printf '%s' "$INPUT" | jq -er '.version | strings') || exit 1
+                exec /usr/libexec/momo-refind start "$ACTION" "$VERSION"
+                ;;
+            *) exit 1;;
+        esac
+        ;;
+    *) exit 1;;
+esac

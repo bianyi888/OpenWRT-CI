@@ -206,30 +206,10 @@ jobs:
 
           make download -j$(nproc)
 
-      - name: Fetch reF1nd sing-box binary
+      - name: Install verified reF1nd core and Arthur updater
         if: ${{ !inputs.WRT_TEST }}
         run: |
-          case "${WRT_TARGET:-}" in
-            x86*) SB_ARCH="linux-amd64" ;;
-            *) SB_ARCH="linux-arm64" ;;
-          esac
-          VER=$(curl -s https://api.github.com/repos/reF1nd/sing-box-releases/releases/latest | grep -m1 '"tag_name"' | cut -d'"' -f4)
-          echo "Latest reF1nd sing-box: $VER"
-          SB_VER="${VER#v}"
-          mkdir -p /tmp/sbdl && cd /tmp/sbdl
-          wget -q "https://github.com/reF1nd/sing-box-releases/releases/download/${VER}/sing-box-${SB_VER}-${SB_ARCH}-musl.tar.gz" -O sb.tar.gz || wget -q "https://github.com/reF1nd/sing-box-releases/releases/download/${VER}/sing-box-${SB_VER}-${SB_ARCH}-glibc.tar.gz" -O sb.tar.gz || echo "DOWNLOAD_FAILED"
-          if [ -f sb.tar.gz ]; then
-            tar xzf sb.tar.gz
-            SB_BIN=$(find . -name "sing-box" -type f | head -1)
-            if [ -n "$SB_BIN" ]; then
-              mkdir -p "$GITHUB_WORKSPACE/wrt/files/usr/bin"
-              cp -f "$SB_BIN" "$GITHUB_WORKSPACE/wrt/files/usr/bin/sing-box"
-              chmod +x "$GITHUB_WORKSPACE/wrt/files/usr/bin/sing-box"
-              echo "sing-box $VER placed in files overlay"
-            fi
-          else
-            echo "reF1nd download failed, keeping feed version"
-          fi
+          bash "$GITHUB_WORKSPACE/Scripts/Refind-Install.sh" "$GITHUB_WORKSPACE/wrt"
 
       - name: Compile Firmware
         if: ${{ !inputs.WRT_TEST }}

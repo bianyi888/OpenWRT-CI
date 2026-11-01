@@ -1,0 +1,8 @@
+{
+  "admin/services/momo/refind": {
+    "title": "reF1nd 内核",
+    "order": 15,
+    "action": { "type": "view", "path": "momo/refind" },
+    "depends": { "acl": ["luci-app-momo-refind"], "uci": {"momo": true} }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "luci-app-momo-refind": {
+    "description": "Manage the reF1nd core used by momo",
+    "read": { "ubus": { "momo.refind": ["status"] } },
+    "write": { "ubus": { "momo.refind": ["start"] } }
+  }
+}
