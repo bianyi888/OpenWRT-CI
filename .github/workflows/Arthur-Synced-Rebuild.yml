@@ -1,0 +1,70 @@
+name: Arthur no-WiFi build (upstream synced)
+
+on:
+  create:
+
+permissions: write-all
+
+jobs:
+  cancel-superseded:
+    if: ${{ github.event.ref_type == 'branch' && github.event.ref == 'build/arthur-nowifi-20261102-upstream-synced' }}
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Cancel the superseded pre-sync firmware build
+        run: |
+          set -euo pipefail
+          endpoint="repos/$GITHUB_REPOSITORY/actions/runs/41381510947"
+          state=$(gh api "$endpoint" --jq '.status')
+          if [ "$state" != completed ]; then
+            if ! gh api --method POST "$endpoint/cancel"; then
+              state=$(gh api "$endpoint" --jq '.status')
+              [ "$state" = completed ] || exit 1
+            fi
+          fi
+  preflight:
+    needs: cancel-superseded
+    if: ${{ github.event.ref_type == 'branch' && github.event.ref == 'build/arthur-nowifi-20261102-upstream-synced' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check updater and target configuration
+        run: |
+          python3 -m unittest discover -s Tests -v
+          node Tests/test_refind_ui.js
+          bash -n Scripts/Refind-Install.sh
+          sh -n Scripts/refind/root/usr/libexec/momo-refind
+          sh -n Scripts/refind/root/usr/libexec/momo-refind-download
+          sh -n Scripts/refind/root/usr/libexec/rpcd/momo.refind
+          python3 - <<'PY'
+          from pathlib import Path
+          cfg = Path('Config/IPQ60XX-WIFI-NO.txt').read_text().splitlines()
+          devices = [x for x in cfg if x.startswith('CONFIG_TARGET_DEVICE_') and x.endswith('=y')]
+          assert devices == ['CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y'], devices
+          for package in ('kmod-ath', 'kmod-ath11k', 'kmod-ath11k-ahb', 'kmod-ath11k-pci',
+                          'ath11k-firmware-ipq6018', 'ath11k-firmware-ipq6018-ddwrt'):
+              assert 'CONFIG_PACKAGE_' + package + '=n' in cfg, package
+          for package in ('ttyd', 'luci-app-ttyd', 'jq', 'coreutils-sha256sum'):
+              assert 'CONFIG_PACKAGE_' + package + '=y' in cfg, package
+          general = Path('Config/GENERAL.txt').read_text().splitlines()
+          for package in ('momo', 'luci-app-momo'):
+              assert 'CONFIG_PACKAGE_' + package + '=y' in general, package
+          print('Confirmed: Arthur only, no Wi-Fi, momo + ttyd + reF1nd updater dependencies.')
+          PY
+  build:
+    needs: preflight
+    uses: ./.github/workflows/WRT-CORE.yml
+    with:
+      WRT_CONFIG: IPQ60XX-WIFI-NO
+      WRT_THEME: aurora
+      WRT_NAME: OWRT
+      WRT_SSID: OWRT
+      WRT_WORD: '12345678'
+      WRT_IP: 192.168.5.1
+      WRT_PW: 无
+      WRT_REPO: https://github.com/VIKINGYFY/immortalwrt.git
+      WRT_BRANCH: owrt
+      WRT_SOURCE: VIKINGYFY/immortalwrt
+      WRT_PACKAGE: ''
+      WRT_TEST: false
