@@ -77,7 +77,9 @@ finish() {
 }
 worker() {
     trap finish EXIT
-    trap 'exit 1' HUP INT TERM
+    # rpcd may exit after accepting the task. Keep running without a nohup applet.
+    trap '' HUP
+    trap 'exit 1' INT TERM
     mkdir -p "$STATE"
     STAGE=$(mktemp -d "$STATE/.stage.XXXXXX")
     echo "Action: $1; requested release: $2"
@@ -170,7 +172,10 @@ case "${1:-status}" in
         if ! mkdir "$LOCK" 2>/dev/null; then echo '{"accepted":false,"message":"已有更新操作在进行，请稍后再试。"}'; exit 0; fi
         write_status running '正在准备内核操作……'
         : > "$LOG"
-        nohup "$0" worker "$ACTION" "$TAG" > "$LOG" 2>&1 < /dev/null &
+        (
+            trap '' HUP
+            exec "$0" worker "$ACTION" "$TAG"
+        ) > "$LOG" 2>&1 < /dev/null &
         # The worker may already have finished (and removed its lock).
         { echo "$!" > "$LOCK/pid"; } 2>/dev/null || true
         echo '{"accepted":true}'

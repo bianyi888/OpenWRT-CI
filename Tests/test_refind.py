@@ -221,6 +221,17 @@ exit {1 if bad_config else 0}
 
     def test_rpc_protocol_and_async_start(self):
         import time
+        import signal
+        # OpenWrt need not ship nohup. Fail loudly if the launcher still calls it.
+        self.write('mock-bin/nohup', '#!/bin/sh\ntouch "$TEST_ROOT/nohup-used"\nexit 127\n')
+        # Keep the worker alive long enough to test rpcd/session hangup handling.
+        downloader = self.root / 'usr/libexec/momo-refind-download'
+        downloader.rename(downloader.with_name('download-real'))
+        self.write('usr/libexec/momo-refind-download', '''#!/bin/sh
+touch "$TEST_ROOT/download-ready"
+/bin/sleep 0.5
+exec "$TEST_ROOT/usr/libexec/download-real" "$@"
+''')
         plugin = (LIB / 'rpcd/momo.refind').read_text().replace('/usr/libexec/', str(self.root) + '/usr/libexec/')
         rpc = self.write('rpc-plugin', plugin)
         result = subprocess.run(['sh', str(rpc), 'list'], env=self.env, capture_output=True, text=True, check=True)
@@ -228,6 +239,13 @@ exit {1 if bad_config else 0}
         result = subprocess.run(['sh', str(rpc), 'call', 'start'], input='{"action":"update","version":"latest"}',
                                 env=self.env, capture_output=True, text=True, check=True)
         self.assertTrue(json.loads(result.stdout)['accepted'])
+        for _ in range(100):
+            if (self.root / 'download-ready').exists():
+                break
+            time.sleep(0.01)
+        self.assertTrue((self.root / 'download-ready').exists())
+        pid = int((self.root / 'var/lock/momo-refind/pid').read_text())
+        os.kill(pid, signal.SIGHUP)
         for _ in range(200):
             if not (self.root / 'var/lock/momo-refind').exists():
                 break
@@ -237,6 +255,7 @@ exit {1 if bad_config else 0}
         state = json.loads(result.stdout)
         self.assertEqual(state['state'], 'success', state)
         self.assertFalse(state['busy'])
+        self.assertFalse((self.root / 'nohup-used').exists())
 
 
 if __name__ == '__main__':
