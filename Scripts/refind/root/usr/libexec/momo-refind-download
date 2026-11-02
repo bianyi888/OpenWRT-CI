@@ -32,7 +32,12 @@ jq -e --arg name "$NAME" '[.assets[] | select(.name == $name)] | length == 1' "$
 jq --arg name "$NAME" '.assets[] | select(.name == $name)' "$WORK/release.json" > "$WORK/asset.json"
 URL=$(jq -er '.browser_download_url' "$WORK/asset.json")
 [ "$URL" = "https://github.com/$REPO/releases/download/$VERSION/$NAME" ]
-DIGEST=$(jq -er '.digest | select(test("^sha256:[a-f0-9]{64}$"))' "$WORK/asset.json")
+# OpenWrt's small jq build may omit libonig and all regex functions.
+DIGEST=$(jq -er '.digest | strings' "$WORK/asset.json")
+case "$DIGEST" in sha256:*) ;; *) echo 'Missing SHA-256 digest' >&2; exit 1;; esac
+HASH=${DIGEST#sha256:}
+[ "${#HASH}" -eq 64 ] || { echo 'Invalid SHA-256 digest length' >&2; exit 1; }
+case "$HASH" in *[!0123456789abcdef]*) echo 'Invalid SHA-256 digest' >&2; exit 1;; esac
 echo "Downloading $NAME"
 fetch "$URL" "$WORK/core.tar.gz"
 printf '%s  %s\n' "${DIGEST#sha256:}" "$WORK/core.tar.gz" | sha256sum -c -

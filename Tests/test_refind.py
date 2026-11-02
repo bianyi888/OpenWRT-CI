@@ -125,6 +125,34 @@ exit {1 if bad_config else 0}
         self.save_release()
         self.assertNotEqual(self.download().returncode, 0)
 
+    def test_jq_without_regex_support(self):
+        actual_jq = shutil.which('jq')
+        self.assertTrue(actual_jq)
+        self.write('mock-bin/jq', '''#!/bin/sh
+for arg do
+ case "$arg" in
+  *'test('*|*'match('*|*'sub('*|*'gsub('*|*'capture('*|*'scan('*|*'splits('*)
+   echo 'jq was compiled without ONIGURUMA regex library' >&2
+   exit 5;;
+ esac
+done
+exec ''' + actual_jq + ''' "$@"
+''')
+        result = self.download()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        result = self.worker()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.status()['state'], 'success')
+
+    def test_malformed_digest_rejected(self):
+        for value in ['md5:' + 'a' * 64, 'sha256:' + 'a' * 63,
+                      'sha256:' + 'g' * 64, 'sha256:' + 'a' * 64 + '\n']:
+            with self.subTest(digest=value):
+                self.release['assets'][0]['digest'] = value
+                self.save_release()
+                self.assertNotEqual(self.download().returncode, 0)
+                self.assertFalse((self.root / 'out/sing-box').exists())
+
     def test_no_glibc_fallback(self):
         self.release['assets'][0]['name'] = self.release['assets'][0]['name'].replace('musl', 'glibc')
         self.save_release()
