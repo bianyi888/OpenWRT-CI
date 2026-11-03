@@ -1,0 +1,74 @@
+name: Arthur no-WiFi build with optional Vantage
+
+on:
+  create:
+
+permissions: write-all
+
+jobs:
+  preflight:
+    if: ${{ github.event.ref_type == 'branch' && github.event.ref == 'build/arthur-nowifi-20261104-vantage' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify updater and Arthur theme configuration
+        run: |
+          python3 -m unittest discover -s Tests -v
+          node Tests/test_refind_ui.js
+          bash -n Scripts/Settings.sh
+          bash -n Scripts/Refind-Install.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          cfg = Path('Config/IPQ60XX-WIFI-NO.txt').read_text().splitlines()
+          devices = [line for line in cfg if line.startswith('CONFIG_TARGET_DEVICE_') and line.endswith('=y')]
+          assert devices == ['CONFIG_TARGET_DEVICE_qualcommax_ipq60xx_DEVICE_jdcloud_re-ss-01=y'], devices
+          for name in ('kmod-ath', 'kmod-ath11k', 'kmod-ath11k-ahb', 'kmod-ath11k-pci', 'ath11k-firmware-ipq6018', 'ath11k-firmware-ipq6018-ddwrt'):
+              assert 'CONFIG_PACKAGE_' + name + '=n' in cfg, name
+          for name in ('ttyd', 'luci-app-ttyd', 'jq', 'coreutils-sha256sum', 'luci-theme-vantage', 'luci-i18n-vantage-theme-zh-cn'):
+              assert 'CONFIG_PACKAGE_' + name + '=y' in cfg, name
+          assert 'WRT_THEME: aurora' in Path('.github/workflows/QCA-ALL.yml').read_text()
+          assert ': # Preserve the configured default theme' in Path('Scripts/Settings.sh').read_text()
+          print('Verified: Arthur only, Wi-Fi disabled, optional Vantage, Aurora default.')
+          PY
+  cleanup:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Delete only the selected old completed workflow runs
+        run: |
+          set -euo pipefail
+          for id in 41383279573 41382873443 41382322859; do
+            state=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id" --jq '.status')
+            [ "$state" = completed ] || { echo "Run $id is active; preserving it."; continue; }
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/actions/runs/$id"
+            echo "Deleted old workflow run $id"
+          done
+      - name: Delete only the selected old firmware tag
+        run: |
+          set -euo pipefail
+          while read -r tag expected_sha; do
+            actual_sha=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')
+            [ "$actual_sha" = "$expected_sha" ] || { echo "Tag $tag changed; refusing deletion."; exit 1; }
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag"
+            echo "Deleted old tag $tag"
+          done <<'TAGS'
+          IPQ60XX-WIFI-NO-VIKINGYFY-owrt-26.11.02-11.18.51 df441b696ab706fcff31b28a0a3f36875293f507
+          TAGS
+  build:
+    needs: cleanup
+    uses: ./.github/workflows/WRT-CORE.yml
+    with:
+      WRT_CONFIG: IPQ60XX-WIFI-NO
+      WRT_THEME: aurora
+      WRT_NAME: OWRT
+      WRT_SSID: OWRT
+      WRT_WORD: '12345678'
+      WRT_IP: 192.168.5.1
+      WRT_PW: 无
+      WRT_REPO: https://github.com/VIKINGYFY/immortalwrt.git
+      WRT_BRANCH: owrt
+      WRT_SOURCE: VIKINGYFY/immortalwrt
+      WRT_PACKAGE: ''
+      WRT_TEST: false
