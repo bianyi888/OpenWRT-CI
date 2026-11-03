@@ -6,6 +6,14 @@
 find ./feeds/luci/collections/ -type f -name "Makefile" -exec sed -i "/attendedsysupgrade/d" {} +
 #修改默认主题
 find ./feeds/luci/collections/ -type f -name "Makefile" -exec sed -i "s/luci-theme-bootstrap/luci-theme-$WRT_THEME/g" {} +
+#可选主题仅注册，不覆盖 WRT_THEME 指定的默认主题
+if [[ "$WRT_THEME" != "vantage" ]]; then
+	VANTAGE_DEFAULTS="./package/luci-theme-vantage/luci-theme-vantage/root/etc/uci-defaults/30_luci-theme-vantage"
+	if [ -f "$VANTAGE_DEFAULTS" ]; then
+		sed -i 's@uci -q set luci.main.mediaurlbase=/luci-static/vantage@: # Preserve the configured default theme@' "$VANTAGE_DEFAULTS"
+		sh -n "$VANTAGE_DEFAULTS"
+	fi
+fi
 #修改immortalwrt.lan关联IP
 find ./feeds/luci/modules/luci-mod-system/ -type f -name "flash.js" -exec sed -i "s/192\.168\.[0-9]*\.[0-9]*/$WRT_IP/g" {} +
 #添加编译日期标识
